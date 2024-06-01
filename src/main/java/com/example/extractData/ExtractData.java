@@ -1,7 +1,5 @@
 package com.example.extractData;
 
-import java.sql.Connection;
-
 import com.example.dbConfig.DataBaseConfig;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -9,21 +7,23 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ExtractData {
-
-    private Map<String, List> mapInfo = new HashMap<>();
-    private List<String> names = new ArrayList<>();
-    private List<String> hrefs = new ArrayList<>();
-    private List<String> getData = new ArrayList<>();
-    private List<String> experiences = new ArrayList<>();
-    private DataBaseConfig dbComfig = new DataBaseConfig();
+    private final Map<String, List> mapInfo = new HashMap<>();
+    private final List<String> names = new ArrayList<>();
+    private final List<String> hrefs = new ArrayList<>();
+    private final List<String> experiences = new ArrayList<>();
+    private final DataBaseConfig dbComfig = new DataBaseConfig();
     private Statement stmt = null;
 
-    private void getNameNInfo(String url) throws IOException, SQLException {
+    private void getNameNInfo(String url) {
         try {
             Document document = Jsoup.connect(url).get();
             Elements baseUrlElements = document.select("#about-teachers-page.fake-menu.with-submenu div.container-fluid div#filterResult.container.position-relative div.row div.col-12.col-sm-6.col-md-4.col-lg-3.px-0 div.row.mx-0 div.col-12 div.teacher-card-vertical a.name.d-block");
@@ -31,11 +31,7 @@ public class ExtractData {
             for (Element element : baseUrlElements) {
                 String teacherNames = element.ownText();
 
-                try {
-                    insertIntoTeachersTable(teacherNames);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+                insertIntoTeachersTable(teacherNames);
 
                 names.add(teacherNames);
                 String subUrls = element.attr("href");
@@ -51,11 +47,16 @@ public class ExtractData {
         retrieveExperiences(mapInfo);
     }
 
-    public void retrieveExperiences(Map<String, List> mapInfo) throws IOException, SQLException {
-        getData = mapInfo.get("hrefs");
+    public void retrieveExperiences(Map<String, List> mapInfo) {
+        List<String> getData = mapInfo.get("hrefs");
 
         for (int i = 0; i <= getData.size(); i++) {
-            Document document = Jsoup.connect(getData.get(i)).get();
+            Document document = null;
+            try {
+                document = Jsoup.connect(getData.get(i)).get();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             Elements subUrlElements = document.select("#about-teacher-page.fake-menu.with-submenu div.summery.container.mt-5 div.row.pt-5.awards div.col-12.col-md-6 div.h");
 
             if (subUrlElements.size() == 0) {
@@ -69,7 +70,7 @@ public class ExtractData {
         }
     }
 
-    private void insertIntoRecordsTable(String input) throws SQLException {
+    private void insertIntoRecordsTable(String input) {
         Connection con = dbComfig.config();
         try {
             stmt = con.createStatement();
@@ -81,12 +82,17 @@ public class ExtractData {
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            if (stmt != null)
-                con.close();
+            if (stmt != null) {
+                try {
+                    con.close();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 
-    public void insertIntoTeachersTable(String name) throws SQLException {
+    public void insertIntoTeachersTable(String name) {
         Connection con = dbComfig.config();
         try {
             stmt = con.createStatement();
@@ -98,12 +104,17 @@ public class ExtractData {
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            if (stmt != null)
-                con.close();
+            if (stmt != null) {
+                try {
+                    con.close();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 
-    public static void main(String[] args) throws IOException, SQLException {
+    public static void main(String[] args) {
         String url = "https://inverseschool.com/inverse-world/teachers/";
         ExtractData crawlerBase = new ExtractData();
         crawlerBase.getNameNInfo(url);
